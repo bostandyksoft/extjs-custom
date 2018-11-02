@@ -47,6 +47,9 @@ OIS.define('Ext.ois.form.field.ColorField', {
 
         if (Ext.isString(value)) {
             me.colorValue = Ext.util.Color.fromString(value);
+            if (me.colorValue.r + me.colorValue.g + me.colorValue.b === 0) {
+                me.colorValue = Ext.util.Color.fromString('#' + value);
+            }
         } else {
             me.colorValue = value;
             value = value.toHex();
