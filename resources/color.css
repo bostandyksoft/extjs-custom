@@ -1,0 +1,6 @@
+.slider {
+    background: url(images/color/slider.png);
+    width: 10px;
+    height: 10px;
+    position: absolute;
+}
