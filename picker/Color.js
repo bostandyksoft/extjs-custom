@@ -1,4 +1,4 @@
-OIS.define('Ext.ois.picker.Color', {
+Ext.define('Ext.ois.picker.Color', {
     extend: 'Ext.panel.Panel',
 
     childEls: [

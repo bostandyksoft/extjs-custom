@@ -1,4 +1,4 @@
-OIS.define('Ext.ois.form.field.ColorField', {
+Ext.define('Ext.ois.form.field.ColorField', {
     extend: 'Ext.form.field.Picker',
 
     requires: [
