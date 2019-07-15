@@ -17,6 +17,7 @@ Ext.define('Ext.ois.form.field.ColorField', {
     triggerCls: Ext.baseCSSPrefix + 'form-arrow-trigger',
 
     config: {
+        expandOnClick: false,
         matchFieldWidth: false,
         colorValue: null
     },
@@ -24,11 +25,9 @@ Ext.define('Ext.ois.form.field.ColorField', {
     initValue: function () {
         var me = this,
             value = me.value;
-        if (!value) {
-            value = 'white';
-        }
-        me.colorValue = Ext.util.Color.fromString(value);
-        me.value = me.colorValue.toHex();
+
+        me.colorValue = value ? Ext.util.Color.fromString(value) : null;
+        me.value = value ? me.colorValue.toHex().substring(1) : null;
         me.callParent();
     },
 
@@ -37,9 +36,13 @@ Ext.define('Ext.ois.form.field.ColorField', {
         me.callParent(arguments);
 
         me.inputEl.setStyle({
-            backgroundColor: me.value,
+            backgroundColor: me.value ? me.value : 'white',
             color: me.textColor(me.colorValue)
         });
+    },
+
+    setRawValue: function (value) {
+        this.callParent(arguments);
     },
 
     setValue: function (value) {
@@ -52,15 +55,22 @@ Ext.define('Ext.ois.form.field.ColorField', {
             }
         } else {
             me.colorValue = value;
-            value = value.toHex();
+            value = value ? value.toHex().substring(1) : null;
         }
         me.callParent([value]);
 
         if (me.rendered) {
-            me.inputEl.setStyle({
-                backgroundColor: me.colorValue.toHex(),
-                color: me.textColor(me.colorValue)
-            });
+            if (!me.colorValue) {
+                me.inputEl.setStyle({
+                    backgroundColor: 'white',
+                    color: 'black'
+                });
+            } else {
+                me.inputEl.setStyle({
+                    backgroundColor: me.colorValue.toHex(),
+                    color: me.textColor(me.colorValue)
+                });
+            }
             if (me.isExpanded) {
                 me.picker.setValue(me.colorValue);
             }
@@ -68,8 +78,7 @@ Ext.define('Ext.ois.form.field.ColorField', {
     },
 
     textColor: function (color) {
-        var me = this;
-        if (color.getBrightness() > 50) {
+        if (!color || color.getBrightness() > 50) {
             return 'black';
         } else {
             return 'white';
@@ -82,8 +91,6 @@ Ext.define('Ext.ois.form.field.ColorField', {
             floating: true,
             focusable: false,
             hidden: true,
-            ownerCt: this.ownerCt,
-            renderTo: document.body,
             listeners: {
                 select: me.onSelect,
                 cancel: me.onCancel,

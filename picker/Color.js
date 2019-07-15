@@ -6,8 +6,8 @@ Ext.define('Ext.ois.picker.Color', {
     ],
 
     config: {
-        width: 200,
-        height: 200,
+        width: 300,
+        height: 300,
         itemPadding: 5,
         paneHeight: 40,
         blockWidth: 0.7,
@@ -188,25 +188,34 @@ Ext.define('Ext.ois.picker.Color', {
 
     },
 
-    fillGradient: function () {
+    fillGradient: function (cb) {
         var me = this;
-        var width = me.block.dom.width;
-        var height = me.block.dom.height;
 
-        me.blockCtx.fillStyle = me.getStripColor();
-        me.blockCtx.fillRect(0, 0, width, height);
+        var timeout = me.fillTimeout;
+        clearTimeout(timeout);
+        me.fillTimeout = setTimeout(function () {
+            var width = me.block.dom.width;
+            var height = me.block.dom.height;
 
-        var grdWhite = me.stripCtx.createLinearGradient(0, 0, width, 0);
-        grdWhite.addColorStop(0, 'rgba(255,255,255,1)');
-        grdWhite.addColorStop(1, 'rgba(255,255,255,0)');
-        me.blockCtx.fillStyle = grdWhite;
-        me.blockCtx.fillRect(0, 0, width, height);
+            me.blockCtx.fillStyle = me.getStripColor();
+            me.blockCtx.fillRect(0, 0, width, height);
 
-        var grdBlack = me.stripCtx.createLinearGradient(0, 0, 0, height);
-        grdBlack.addColorStop(0, 'rgba(0,0,0,0)');
-        grdBlack.addColorStop(1, 'rgba(0,0,0,1)');
-        me.blockCtx.fillStyle = grdBlack;
-        me.blockCtx.fillRect(0, 0, width, height);
+            var grdWhite = me.stripCtx.createLinearGradient(0, 0, width, 0);
+            grdWhite.addColorStop(0, 'rgba(255,255,255,1)');
+            grdWhite.addColorStop(1, 'rgba(255,255,255,0)');
+            me.blockCtx.fillStyle = grdWhite;
+            me.blockCtx.fillRect(0, 0, width, height);
+
+            var grdBlack = me.stripCtx.createLinearGradient(0, 0, 0, height);
+            grdBlack.addColorStop(0, 'rgba(0,0,0,0)');
+            grdBlack.addColorStop(1, 'rgba(0,0,0,1)');
+            me.blockCtx.fillStyle = grdBlack;
+            me.blockCtx.fillRect(0, 0, width, height);
+
+            if (typeof cb === 'function') {
+                cb.apply(me);
+            }
+        }, 30);
     },
 
     stripMouseDown: function (e) {
@@ -225,11 +234,11 @@ Ext.define('Ext.ois.picker.Color', {
 
     stripDragging: function (e) {
         var me = this;
-        if (me.stripDrag && e.browserEvent.srcElement === me.strip.dom) {
+        if (me.stripDrag && e.browserEvent.target === me.strip.dom) {
             var x = e.browserEvent.offsetX;
             var y = e.browserEvent.offsetY;
 
-            if (Math.abs(x - me.stripPos.x) > 1 || Math.abs(y - me.stripPos.y) > 1) {
+            if (Math.abs(x - me.stripPos.x) > 5 || Math.abs(y - me.stripPos.y) > 5) {
                 me.stripPos = {
                     x: x,
                     y: y
@@ -243,8 +252,9 @@ Ext.define('Ext.ois.picker.Color', {
         var me = this;
         me.stripSlider.style.left = (me.stripPos.x - 5) + 'px';
         me.stripSlider.style.top = (me.stripPos.y - 5) + 'px';
-        me.fillGradient();
-        me.updateColor();
+        me.fillGradient(function () {
+            me.updateColor();
+        });
     },
 
     updateColor: function () {
@@ -308,20 +318,22 @@ Ext.define('Ext.ois.picker.Color', {
 
     setValue: function (value) {
         var me = this;
+        var prevValue = me.value;
         me.value = value || Ext.util.Color.fromString('black');
-        me.setPositions();
+        if (prevValue !== me.value) {
+            me.setPositions();
+        }
     },
 
     setPositions: function () {
         var me = this;
         if (me.rendered) {
+
             var strip = me.strip;
             var block = me.block;
             var stripCtx = me.stripCtx;
-            var blockCtx = me.blockCtx;
 
             var x, y, imgData, matchRatio;
-
 
             var bestMatched = null;
 
@@ -337,6 +349,7 @@ Ext.define('Ext.ois.picker.Color', {
                 if (bestMatched == null || matchRatio < bestMatched.matchRatio) {
                     bestMatched = {
                         matchRatio: matchRatio,
+                        data: [imgData[0], imgData[1], imgData[2]],
                         y: y
                     };
                     if (matchRatio === 0) {
@@ -350,27 +363,19 @@ Ext.define('Ext.ois.picker.Color', {
             };
             me.updateStrip();
 
-            bestMatched = null;
-            for (x = 0; x < block.dom.width; x++) {
-                for (y = 0; y < block.dom.height; y++) {
-                    imgData = blockCtx.getImageData(x, y, 1, 1).data;
-                    matchRatio = (Math.abs(imgData[0] - r) + Math.abs(imgData[1] - g) + Math.abs(imgData[2] - b)) / 3.0;
-                    if (bestMatched == null || matchRatio < bestMatched.matchRatio) {
-                        bestMatched = {
-                            matchRatio: matchRatio,
-                            x: x,
-                            y: y
-                        };
-                        if (matchRatio === 0) {
-                            break;
-                        }
-                    }
-                }
-            }
+            var hsv = me.rgb2hsv(r, g, b);
+
+            // x-axis of color map with value 0-1 translates to saturation
+            var xRatio = hsv.s;
+            var left = Math.round(block.dom.width * xRatio);
+
+            // y-axis of color map with value 0-1 translates to reverse of "value"
+            var yRatio = 1 - hsv.v;
+            var top = Math.round(block.dom.height * yRatio);
 
             me.blockPos = {
-                x: bestMatched.x,
-                y: bestMatched.y
+                x: left,
+                y: top
             };
             me.updateColor();
 
@@ -379,6 +384,58 @@ Ext.define('Ext.ois.picker.Color', {
                 single: true
             })
         }
+    },
+
+    /**
+     * http://en.wikipedia.org/wiki/HSL_and_HSV
+     * @param {Number} r The red component (0-255).
+     * @param {Number} g The green component (0-255).
+     * @param {Number} b The blue component (0-255).
+     * @return {Object} An object with "h", "s" and "v" color properties.
+     */
+    rgb2hsv: function (r, g, b) {
+        r = r / 255;
+        g = g / 255;
+        b = b / 255;
+
+        var M = Math.max(r, g, b);
+        var m = Math.min(r, g, b);
+        var c = M - m;
+
+        var hprime = 0;
+        if (c !== 0) {
+            if (M === r) {
+                hprime = ((g - b) / c) % 6;
+            } else if (M === g) {
+                hprime = ((b - r) / c) + 2;
+            } else if (M === b) {
+                hprime = ((r - g) / c) + 4;
+            }
+        }
+
+        var h = hprime * 60;
+        if (h === 360) {
+            h = 0;
+        }
+
+        var v = M;
+
+        var s = 0;
+        if (c !== 0) {
+            s = c / v;
+        }
+
+        h = h / 360;
+
+        if (h < 0) {
+            h = h + 1;
+        }
+
+        return {
+            h: h,
+            s: s,
+            v: v
+        };
     }
 
 });
